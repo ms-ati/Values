@@ -21,7 +21,10 @@ class Value
     raise ArgumentError.new('wrong number of arguments (0 for 1+)') if fields.empty?
 
     Class.new do
-      attr_reader(:hash, *fields)
+      const_set :VALUE_ATTRS, fields
+      const_set :NUM_VALUE_ATTRS, fields.size
+
+      attr_reader(*fields)
 
       # Unroll the fields into a series of assignment Ruby statements that can
       # be used inside of the initializer for the new class. This was introduced
@@ -34,19 +37,15 @@ class Value
 
       class_eval <<-RUBY
         def initialize(*values)
-          if #{fields.size} != values.size
-            raise ArgumentError.new("wrong number of arguments, \#{values.size} for #{fields.size}")
+          if NUM_VALUE_ATTRS != values.size
+            raise ArgumentError.new("wrong number of arguments, \#{values.size} for \#{NUM_VALUE_ATTRS}")
           end
 
           #{instance_var_assignments}
 
-          @hash = self.class.hash ^ values.hash
-
           freeze
         end
       RUBY
-
-      const_set :VALUE_ATTRS, fields
 
       def self.with(hash)
         num_recognized_keys = self::VALUE_ATTRS.count { |field| hash.key?(field) }
@@ -56,7 +55,7 @@ class Value
           raise ArgumentError.new("Unexpected hash keys: #{unexpected_keys}")
         end
 
-        if num_recognized_keys != self::VALUE_ATTRS.size
+        if num_recognized_keys != self::NUM_VALUE_ATTRS
           missing_keys = self::VALUE_ATTRS - hash.keys
           raise ArgumentError.new("Missing hash keys: #{missing_keys} (got keys #{hash.keys})")
         end
@@ -70,6 +69,10 @@ class Value
 
       def eql?(other)
         self.class == other.class && values == other.values
+      end
+
+      def hash
+        self.class.hash ^ values.hash
       end
 
       def values
