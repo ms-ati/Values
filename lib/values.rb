@@ -121,6 +121,8 @@ class Value
         Hash[to_a]
       end
 
+      alias_method :to_hash, :to_h
+
       def recursive_to_h
         Hash[to_a.map{|k, v| [k, Value.coerce_to_h(v)]}]
       end
